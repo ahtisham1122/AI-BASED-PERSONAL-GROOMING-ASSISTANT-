@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Editor/tooling
+.vscode/
+.claude/
+
+# Auto-downloaded model files (main.py re-downloads these if missing)
+face_landmarker.task
+blaze_face_short_range.tflite
+
+# Runtime-generated data/logs (not part of the app source)
+app.log
+feedback.json
+performance_results.txt
+stress_test_log.txt
+snapshots/
+debug/
+
+# One-off report PDFs generated for the thesis (not app source)
+performance_logger_summary.pdf
+performance_stress_test_report.pdf

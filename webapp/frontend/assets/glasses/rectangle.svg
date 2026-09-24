@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rectFrameGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="lensGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- Left Temple Hook -->
+    <path d="M 15 60 C 5 60, 5 35, 12 25" fill="none" stroke="#1E293B" stroke-width="8" stroke-linecap="round"/>
+    <!-- Right Temple Hook -->
+    <path d="M 385 60 C 395 60, 395 35, 388 25" fill="none" stroke="#1E293B" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Left Frame Rim -->
+    <rect x="25" y="40" width="150" height="80" rx="14" fill="url(#lensGrad)" stroke="url(#rectFrameGrad)" stroke-width="12"/>
+    <!-- Right Frame Rim -->
+    <rect x="225" y="40" width="150" height="80" rx="14" fill="url(#lensGrad)" stroke="url(#rectFrameGrad)" stroke-width="12"/>
+
+    <!-- Bridge -->
+    <path d="M 175 62 Q 200 52 225 62" fill="none" stroke="url(#rectFrameGrad)" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Highlights on lenses -->
+    <path d="M 40 50 L 100 50 L 50 100 Z" fill="#FFFFFF" opacity="0.15"/>
+    <path d="M 240 50 L 300 50 L 250 100 Z" fill="#FFFFFF" opacity="0.15"/>
+  </g>
+</svg>

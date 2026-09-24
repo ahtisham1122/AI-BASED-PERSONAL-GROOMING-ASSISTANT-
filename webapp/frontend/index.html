@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Grooming Assistant — Next-Gen Styling Prototype</title>
+  <meta name="description" content="AI Grooming Assistant prototype. Get instant face shape detection, skin tone color matching, glasses style recommendations, and tailored outfit suggestions.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Application Header -->
+    <header class="app-header">
+      <div class="brand-badge">
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z"/>
+        </svg>
+        AI Grooming 2.0 Demo
+      </div>
+      <h1 class="app-title">AI Grooming Assistant</h1>
+      <p class="app-subtitle">Upload a clear front-facing photo to get instant facial analysis, eyewear recommendations, and tailored style guides.</p>
+    </header>
+
+    <!-- Main Interactive Content Area -->
+    <main>
+      
+      <!-- ===================================================================
+           1. UPLOAD SCREEN (Initial Input State)
+           =================================================================== -->
+      <section id="uploadScreen">
+        <form id="groomingForm" novalidate>
+          
+          <!-- Gender Selection Card -->
+          <div class="section-card">
+            <span class="step-badge">Step 01</span>
+            <h2 class="section-label">
+              Select Gender
+              <span class="required-star">*</span>
+            </h2>
+            <div id="genderOptions" class="options-grid grid-2" role="radiogroup" aria-label="Gender Selection">
+              <button type="button" class="option-btn" data-gender="men" role="radio" aria-checked="false">
+                <span class="btn-icon">👨</span>
+                Men
+                <span class="check-icon">✓</span>
+              </button>
+              <button type="button" class="option-btn" data-gender="women" role="radio" aria-checked="false">
+                <span class="btn-icon">👩</span>
+                Women
+                <span class="check-icon">✓</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Occasion Selection Card -->
+          <div class="section-card">
+            <span class="step-badge">Step 02</span>
+            <h2 class="section-label">
+              Select Occasion
+              <span class="required-star">*</span>
+            </h2>
+            <div id="occasionOptions" class="options-grid grid-3" role="radiogroup" aria-label="Occasion Selection">
+              <button type="button" class="option-btn" data-occasion="casual" role="radio" aria-checked="false">
+                <span class="btn-icon">☕</span>
+                Casual
+                <span class="check-icon">✓</span>
+              </button>
+              <button type="button" class="option-btn" data-occasion="formal" role="radio" aria-checked="false">
+                <span class="btn-icon">👔</span>
+                Formal
+                <span class="check-icon">✓</span>
+              </button>
+              <button type="button" class="option-btn" data-occasion="party" role="radio" aria-checked="false">
+                <span class="btn-icon">🎉</span>
+                Party
+                <span class="check-icon">✓</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Photo Upload Card -->
+          <div class="section-card">
+            <span class="step-badge">Step 03</span>
+            <h2 class="section-label">
+              Upload Your Photo
+              <span class="required-star">*</span>
+            </h2>
+            <p class="section-description">Choose a clear, front-facing portrait photo in well-lit conditions.</p>
+
+            <!-- Dropzone Area -->
+            <div id="uploadDropzone" class="upload-dropzone" tabindex="0" role="button" aria-label="Upload photo drop zone">
+              <div class="upload-icon-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div class="upload-title">Drag & drop your face photo here</div>
+              <div class="upload-hint">JPG or PNG format • Clear front-facing portrait</div>
+              <span class="upload-btn-secondary">Choose Photo File</span>
+              <input type="file" id="photoInput" accept="image/jpeg,image/png">
+            </div>
+
+            <!-- Photo Preview Display Card -->
+            <div id="previewContainer" class="preview-container">
+              <div class="preview-wrapper">
+                <img id="photoPreview" src="" alt="Uploaded Face Photo Preview" class="preview-img">
+              </div>
+              <div class="preview-info">
+                <span id="fileNameBadge" class="file-name-badge">photo.jpg</span>
+                <button type="button" id="changePhotoBtn" class="change-photo-btn">Re-select Photo</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inline Error Banner -->
+          <div id="errorMessage" class="error-banner" role="alert" aria-live="polite">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <span id="errorText">Please complete all required steps.</span>
+          </div>
+
+          <!-- Submit CTA Button -->
+          <div class="cta-container">
+            <button type="submit" id="analyzeButton" class="btn-primary">
+              <span>Analyze My Look</span>
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+        </form>
+      </section>
+
+      <!-- ===================================================================
+           2. LOADING SCREEN (Futuristic Laser Scanner State)
+           =================================================================== -->
+      <section id="loadingState" class="loading-view" aria-live="assertive">
+        <!-- Laser Scanner Visual Stage -->
+        <div class="scanner-stage">
+          <img id="scannerImg" src="" alt="Photo scanning preview" class="scanner-img">
+          <div class="scanner-laser-beam"></div>
+        </div>
+        <h2 class="loading-title">AI Landmark Scanner Active</h2>
+        <p id="loadingStepText" class="loading-step-text">Mapping 68 facial landmark coordinates...</p>
+      </section>
+
+      <!-- ===================================================================
+           3. RESULTS SCREEN (Interactive Report State)
+           =================================================================== -->
+      <section id="resultsScreen" class="results-view">
+        
+        <!-- Results Header -->
+        <div class="results-header">
+          <h2 class="results-title">Your Personalized Grooming Guide</h2>
+          <p class="results-subtitle">Generated using AI visual landmark analysis & color matrix algorithms</p>
+        </div>
+
+        <!-- Key Metrics Hero Grid -->
+        <div class="metrics-hero-grid">
+          
+          <!-- Uploaded Photo Card -->
+          <div class="user-photo-card">
+            <div class="user-photo-frame">
+              <img id="resultsPhoto" src="" alt="Analyzed user front-facing portrait">
+            </div>
+            <span class="user-photo-label">Analyzed Portrait</span>
+          </div>
+
+          <!-- Face Shape Card -->
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-title">Your Face Shape</span>
+              <span id="confidence" class="confidence-badge">92% match</span>
+            </div>
+            <div>
+              <div id="faceShape" class="metric-value-primary">Oval</div>
+              <p id="faceShapeDesc" class="metric-description">Balanced proportions with softly curved jawline and slightly wider cheekbones.</p>
+            </div>
+          </div>
+
+          <!-- Skin Tone Card -->
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-title">Your Skin Tone</span>
+            </div>
+            <div>
+              <div id="skinTone" class="metric-value-primary">Warm</div>
+              <p id="skinToneDesc" class="metric-description">Golden or peachy undertones that shine best in rich earthy & golden hues.</p>
+              <div class="skin-tone-swatch-badge">
+                <span id="skinToneSwatchCircle" class="swatch-circle" style="background-color: #e5c1a1;"></span>
+                <span>Tone Classification</span>
+              </div>
+              <p id="skinToneLowConfidenceWarning" class="metric-description" style="color: #b45309; display: none; margin-top: 8px;">
+                Rough estimate — part of the face looks shadowed.
+              </p>
+              <p class="metric-description" style="margin-top: 6px; font-size: 0.78rem;">
+                For best results, remove hats and ensure even lighting.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Try-On Interactive Stage -->
+        <div id="tryonSection" class="tryon-card-section">
+          <h3 class="section-label">Interactive Glasses Try-On</h3>
+          <div class="tryon-flex-wrapper">
+            <div id="tryonContainer" class="tryon-container">
+              <img id="tryonFace" src="" alt="User face for try-on preview" class="tryon-face">
+              <img id="tryonGlassesOverlay" src="assets/glasses/rectangle.svg" alt="Glasses Overlay" class="tryon-glasses-overlay">
+            </div>
+            <div class="tryon-info-box">
+              <div id="tryonGlassesTitle" class="tryon-active-title">Rectangle Frames</div>
+              <p id="tryonGlassesReason" class="tryon-active-desc">Structured frames add definition and complement balanced facial proportions.</p>
+
+              <!-- Interactive Alignment Controls -->
+              <div class="tryon-controls-panel">
+                <div class="slider-group">
+                  <label for="tryonXSlider">Left / Right:</label>
+                  <input type="range" id="tryonXSlider" min="20" max="80" value="50">
+                </div>
+                <div class="slider-group">
+                  <label for="tryonHeightSlider">Up / Down:</label>
+                  <input type="range" id="tryonHeightSlider" min="10" max="70" value="33">
+                </div>
+                <div class="slider-group">
+                  <label for="tryonScaleSlider">Glasses Size:</label>
+                  <input type="range" id="tryonScaleSlider" min="20" max="70" value="42">
+                </div>
+
+                <div class="preset-btns-row">
+                  <button type="button" id="presetDefaultBtn" class="preset-btn-sm">Reset Alignment</button>
+                  <button type="button" id="presetHigherBtn" class="preset-btn-sm">Position Higher</button>
+                  <button type="button" id="presetLowerBtn" class="preset-btn-sm">Position Lower</button>
+                </div>
+              </div>
+
+              <div class="tryon-disclaimer" style="margin-top: 12px;">
+                <span>💡</span>
+                <span>Drag glasses on the photo or use sliders to align fit</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommended Glasses Grid -->
+        <div class="section-card">
+          <h3 class="section-label">Recommended Glasses Styles</h3>
+          <p class="section-description">Eyewear frames tailored to complement your face shape. Click any style to test try-on.</p>
+          <div id="glassesGrid" class="glasses-grid">
+            <!-- Dynamic Cards Rendered by script.js -->
+          </div>
+        </div>
+
+        <!-- Color Recommendations Section -->
+        <div class="section-card">
+          <h3 class="section-label">Colors That Suit You</h3>
+          <p class="section-description">Wardrobe hues selected to enhance your analyzed skin tone.</p>
+          <div id="colorPalette" class="color-swatches-wrapper">
+            <div id="colorSwatchesGrid" class="color-swatches-grid">
+              <!-- Dynamic Swatches Rendered by script.js -->
+            </div>
+            <div id="colorExplanation" class="color-explanation-box">
+              <span>💡</span>
+              <span id="colorExplanationText">These colors complement your analyzed skin tone.</span>
+            </div>
+            <p class="section-description" style="margin-top: 20px;">Colors to avoid:</p>
+            <div id="avoidColorsGrid" class="color-swatches-grid">
+              <!-- Dynamic Swatches Rendered by script.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Hairstyle Recommendations Section -->
+        <div class="section-card">
+          <h3 class="section-label">Recommended Hairstyles</h3>
+          <p class="section-description">Styles chosen to complement your detected face shape.</p>
+          <div id="hairstyleList" class="outfits-list">
+            <!-- Dynamic Hairstyles Rendered by script.js -->
+          </div>
+        </div>
+
+        <!-- Grooming Tips Section -->
+        <div class="section-card">
+          <h3 class="section-label">Grooming Tips</h3>
+          <p class="section-description">Shaping and styling tips for your face shape.</p>
+          <div id="groomingList">
+            <!-- Dynamic Grooming Tips Rendered by script.js -->
+          </div>
+        </div>
+
+        <!-- Action Footer -->
+        <div class="cta-container">
+          <button type="button" id="tryAnotherButton" class="btn-secondary">
+            <svg viewBox="0 0 24 24">
+              <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            Try Another Photo
+          </button>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- JavaScript Module -->
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="roundFrameGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#92400E"/>
+      <stop offset="100%" stop-color="#451A03"/>
+    </linearGradient>
+    <linearGradient id="roundLensGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="shadowR" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadowR)">
+    <!-- Left Temple -->
+    <path d="M 20 70 C 5 70, 5 45, 12 35" fill="none" stroke="#78350F" stroke-width="7" stroke-linecap="round"/>
+    <!-- Right Temple -->
+    <path d="M 380 70 C 395 70, 395 45, 388 35" fill="none" stroke="#78350F" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- Left Circle -->
+    <circle cx="100" cy="80" r="52" fill="url(#roundLensGrad)" stroke="url(#roundFrameGrad)" stroke-width="10"/>
+    <!-- Right Circle -->
+    <circle cx="300" cy="80" r="52" fill="url(#roundLensGrad)" stroke="url(#roundFrameGrad)" stroke-width="10"/>
+
+    <!-- Arch Bridge -->
+    <path d="M 152 75 Q 200 58 248 75" fill="none" stroke="url(#roundFrameGrad)" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Glare -->
+    <path d="M 75 50 Q 115 45 130 65 Q 110 55 75 50 Z" fill="#FFFFFF" opacity="0.25"/>
+    <path d="M 275 50 Q 315 45 330 65 Q 310 55 275 50 Z" fill="#FFFFFF" opacity="0.25"/>
+  </g>
+</svg>
