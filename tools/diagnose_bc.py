@@ -9,9 +9,11 @@ import cv2
 import mediapipe as mp
 import glob
 
-from face_tracking import MODEL_PATH, download_model
-from face_shape_model import compute_face_ratios, classify_face_shape
-from skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))  # project root
+from app.paths import DATASET_DIR
+from app.face_tracking import MODEL_PATH, download_model
+from app.face_shape_model import compute_face_ratios, classify_face_shape
+from app.skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
 
 download_model()
 
@@ -28,7 +30,7 @@ options = FaceLandmarkerOptions(
 
 paths = []
 for shape in ['Heart', 'Oblong', 'Oval', 'Round', 'Square']:
-    matches = glob.glob(f'face_shape_dataset/testing_set/{shape}/*')[:2]
+    matches = glob.glob(str(DATASET_DIR / 'testing_set' / shape / '*'))[:2]
     paths.extend((p, shape) for p in matches)
 
 with FaceLandmarker.create_from_options(options) as landmarker:

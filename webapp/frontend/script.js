@@ -14,6 +14,8 @@ const state = {
   isAnalyzing: false,
   analysisResult: null,
   selectedGlasses: null,
+  allGlasses: [],        // every frame the backend serves: [{id, styles, image}]
+  tryonIndex: 0,         // which of allGlasses is on the face right now
   tryonLeft: 50,         // Default X %
   tryonTop: 33,          // Default Y % (eye level)
   tryonScale: 42,        // Default scale % (realistic face proportion)
@@ -97,6 +99,9 @@ function cacheDOMElements() {
     tryonGlassesOverlay: document.getElementById("tryonGlassesOverlay"),
     tryonGlassesTitle: document.getElementById("tryonGlassesTitle"),
     tryonGlassesReason: document.getElementById("tryonGlassesReason"),
+    tryonPrevBtn: document.getElementById("tryonPrevBtn"),
+    tryonNextBtn: document.getElementById("tryonNextBtn"),
+    tryonCounter: document.getElementById("tryonCounter"),
     tryonXSlider: document.getElementById("tryonXSlider"),
     tryonHeightSlider: document.getElementById("tryonHeightSlider"),
     tryonScaleSlider: document.getElementById("tryonScaleSlider"),
@@ -179,6 +184,10 @@ function setupEventListeners() {
       DOM.photoInput.click();
     });
   }
+
+  // Browse every available frame
+  if (DOM.tryonPrevBtn) DOM.tryonPrevBtn.addEventListener("click", () => stepGlasses(-1));
+  if (DOM.tryonNextBtn) DOM.tryonNextBtn.addEventListener("click", () => stepGlasses(1));
 
   // Try-On Alignment Sliders Sync
   if (DOM.tryonXSlider) {
@@ -546,7 +555,8 @@ function renderResults(result) {
     DOM.confidence.style.display = "none";
   }
 
-  // 5. Render Recommended Glasses
+  // 5. Render Recommended Glasses (allGlasses first: the default try-on frame is looked up in it)
+  state.allGlasses = result.allGlasses || [];
   renderGlasses(result.glasses || []);
 
   // 6. Render Hairstyle Suggestions
@@ -582,9 +592,10 @@ function renderGlasses(glassesList) {
     card.innerHTML = `
       <div>
         <div class="glasses-img-box">
-          <img src="${item.image}" alt="${item.name}" onerror="this.onerror=null; this.src='assets/glasses/rectangle.svg';">
+          <img src="${item.image || ""}" alt="${item.name}" onerror="this.style.visibility='hidden';">
         </div>
         <div class="glasses-name">${item.name}</div>
+        ${(item.ids || []).length > 1 ? `<div class="glasses-count">${item.ids.length} matching frames</div>` : ""}
         <div class="glasses-reason">${item.reason}</div>
       </div>
       <button type="button" class="try-btn-sm">${index === 0 ? "Selected" : "Try On"}</button>
@@ -604,6 +615,8 @@ function renderGlasses(glassesList) {
   // Select first glasses style by default for try-on preview
   if (glassesList.length > 0) {
     updateTryOnPreview(glassesList[0]);
+  } else {
+    showFrame(0);
   }
 }
 
@@ -623,12 +636,54 @@ function selectGlasses(cardEl, glassesObj) {
   updateTryOnPreview(glassesObj);
 }
 
+// A recommended card was picked: put its first matching real frame on the face.
 function updateTryOnPreview(glassesObj) {
   if (!glassesObj) return;
-  DOM.tryonGlassesOverlay.src = glassesObj.image;
-  DOM.tryonGlassesTitle.textContent = glassesObj.name;
-  DOM.tryonGlassesReason.textContent = glassesObj.reason;
+  const firstId = (glassesObj.ids || [])[0];
+  const index = state.allGlasses.findIndex((g) => g.id === firstId);
+  showFrame(index >= 0 ? index : 0, glassesObj.name, glassesObj.reason);
+}
+
+// Previous / Next: cycle through EVERY frame, recommended or not.
+function stepGlasses(step) {
+  const count = state.allGlasses.length;
+  if (count === 0) return;
+  const index = (state.tryonIndex + step + count) % count;
+  const frame = state.allGlasses[index];
+  const recs = (state.analysisResult && state.analysisResult.glasses) || [];
+  const rec = recs.find((r) => (r.ids || []).includes(frame.id));
+  markSelectedCard(rec ? recs.indexOf(rec) : -1);
+  if (rec) {
+    showFrame(index, rec.name, `Recommended for your face shape: ${rec.reason}`);
+  } else {
+    const label = frame.styles.length ? frame.styles.join(" / ") : "Other";
+    showFrame(index, `${label.charAt(0).toUpperCase()}${label.slice(1)} frame`,
+      "Not one of your top recommendations, but feel free to try it on.");
+  }
+}
+
+function showFrame(index, title, reason) {
+  const count = state.allGlasses.length;
+  DOM.tryonCounter.textContent = count ? `${index + 1} / ${count}` : "0 / 0";
+  if (count === 0) {
+    DOM.tryonGlassesOverlay.hidden = true;
+    return;
+  }
+  state.tryonIndex = index;
+  DOM.tryonGlassesOverlay.src = state.allGlasses[index].image;
+  DOM.tryonGlassesOverlay.hidden = false;
+  if (title) DOM.tryonGlassesTitle.textContent = title;
+  if (reason) DOM.tryonGlassesReason.textContent = reason;
   updateGlassesTransform();
+}
+
+// Highlights the recommended card at cardIndex (-1 = none).
+function markSelectedCard(cardIndex) {
+  DOM.glassesGrid.querySelectorAll(".glasses-card").forEach((c, i) => {
+    c.classList.toggle("selected", i === cardIndex);
+    const btn = c.querySelector(".try-btn-sm");
+    if (btn) btn.textContent = i === cardIndex ? "Selected" : "Try On";
+  });
 }
 
 function updateGlassesTransform() {
@@ -740,6 +795,9 @@ function resetApplication() {
   state.isAnalyzing = false;
   state.analysisResult = null;
   state.selectedGlasses = null;
+  state.allGlasses = [];
+  state.tryonIndex = 0;
+  if (DOM.tryonGlassesOverlay) DOM.tryonGlassesOverlay.hidden = true;
   state.tryonLeft = 50;
   state.tryonTop = 33;
   state.tryonScale = 42;

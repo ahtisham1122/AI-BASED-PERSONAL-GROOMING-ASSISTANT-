@@ -43,11 +43,12 @@ import math
 import urllib.request
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-from recommendations import (
+from app.paths import ASSETS_DIR
+from app.recommendations import (
     get_hair_rec, get_hair_rec_summary, get_grooming_rec, get_glasses_rec,
     get_glasses_rec_summary, get_color_rec, get_avoid_colors, get_color_swatch,
 )
-import feedback
+from app import feedback
 
 # Supersampling factor for cached PIL images -- draw SS-times too big,
 # downsample once with LANCZOS. Only ever applied to images that are
@@ -131,7 +132,7 @@ def _confidence_color(pct):
 # -- see SS above -- so cached images can request the right glyph size
 # directly instead of drawing small text into a 3x canvas.
 # ──────────────────────────────────────────
-FONT_DIR = os.path.join('assets', 'fonts')
+FONT_DIR = str(ASSETS_DIR / 'fonts')
 FONT_FILES = {
     'regular':  'Poppins-Regular.ttf',
     'medium':   'Poppins-Medium.ttf',
@@ -1310,7 +1311,7 @@ def draw_rating_prompt(frame, stage, suggestion_name):
 # All rendered ONCE (nothing on this screen animates on its own),
 # then just redisplayed while waiting for a card click/key/hover.
 # ──────────────────────────────────────────
-START_SCREEN_PATH = os.path.join('assets', 'ui', 'start_screen.png')
+START_SCREEN_PATH = str(ASSETS_DIR / 'ui' / 'start_screen.png')
 START_MALE_FRAC   = (0.064, 0.377, 0.489, 0.723)
 START_FEMALE_FRAC = (0.513, 0.377, 0.938, 0.723)
 

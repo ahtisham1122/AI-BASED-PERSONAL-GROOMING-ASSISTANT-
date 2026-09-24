@@ -7,32 +7,32 @@ main.py uses (face_shape_model.py, skin_tone.py, recommendations.py,
 face_tracking.py) -- nothing here reimplements that logic, it's all one
 image at a time instead of a live video feed.
 """
+import json
 import os
 import sys
+from functools import lru_cache
 
-# face_shape_model.py etc. live two folders up (webapp/backend/ -> webapp/
-# -> project root), and load their model files (class_names.json,
-# face_shape_cnn.tflite, ...) via bare relative paths at import time, so
-# both the import path and the working directory need to point at the
-# project root before importing them -- regardless of which directory
-# this script is actually launched from.
+# The app/ package lives two folders up (webapp/backend/ -> webapp/ ->
+# project root). Its modules build every model/asset path from their own
+# location (app/paths.py), so only the import path needs setting here.
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
-os.chdir(PROJECT_ROOT)
 
 import cv2
 import numpy as np
 import mediapipe as mp
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, abort
 from flask_cors import CORS
 
-from face_tracking import MODEL_PATH, download_model, _bbox_area
-from face_shape_model import (
+from app.face_tracking import MODEL_PATH, download_model, _bbox_area
+from app.face_shape_model import (
     MODE as FACE_SHAPE_MODE, CLASS_NAMES, classify_face_shape,
     predict_shape_probs, is_frontal_face, TIE_BREAK_MARGIN,
 )
-from skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
-from recommendations import (
+from app.paths import ASSETS_DIR
+from app.ar_overlay import _auto_crop
+from app.skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
+from app.recommendations import (
     get_hair_rec, get_grooming_rec, get_glasses_rec,
     get_color_rec, get_avoid_colors, get_color_swatch,
 )
@@ -126,26 +126,61 @@ def color_list(csv_names):
     ]
 
 
-# Only 4 glasses SVGs exist as real assets (assets/glasses/); recommendations.py's
-# frame-TYPE names are broader than that, so each one maps to whichever of the 4
-# actual assets looks closest. Anything not listed falls back to rectangle.svg
-# (the frontend's <img onerror> also falls back to the same file as a second
-# safety net if an asset ever fails to load).
-GLASSES_IMAGE_MAP = {
-    "Rectangle frames":     "rectangle.svg",
-    "Square frames":        "rectangle.svg",
-    "Round frames":         "round.svg",
-    "Oval frames":          "round.svg",
-    "Thin/rimless frames":  "round.svg",
-    "Rimless frames":       "round.svg",
-    "Aviator":              "aviator.svg",
-    "Oversized frames":     "aviator.svg",
-    "Browline frames":      "wayfarer.svg",
-}
+# Glasses images: served straight from the SAME folder the desktop app's
+# AR try-on loads (assets/glasses/processed/), so a PNG added there shows
+# up on both. glasses_styles.json tags each PNG with frame types so a
+# recommendation like "Round frames" can point at every matching PNG.
+GLASSES_DIR = str(ASSETS_DIR / 'glasses' / 'processed')
+GLASSES_STYLES_PATH = str(ASSETS_DIR / 'glasses' / 'glasses_styles.json')
 
 
-def glasses_image(name):
-    return f"assets/glasses/{GLASSES_IMAGE_MAP.get(name, 'rectangle.svg')}"
+def _load_glasses_styles():
+    try:
+        with open(GLASSES_STYLES_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def list_web_glasses():
+    """Every PNG in GLASSES_DIR (re-read each call, so new files appear without a restart), minus hide_on_web ones."""
+    styles = _load_glasses_styles()
+    ids = sorted(
+        (os.path.splitext(f)[0] for f in os.listdir(GLASSES_DIR) if f.lower().endswith('.png')),
+        key=lambda s: (len(s), s),  # natural order: glasses2 before glasses10
+    )
+    return [
+        {"id": gid, "styles": styles.get(gid, {}).get("styles", []), "image": f"{request.host_url}glasses/{gid}.png"}
+        for gid in ids if not styles.get(gid, {}).get("hide_on_web")
+    ]
+
+
+def style_key(rec_name):
+    """recommendations.py frame name -> glasses_styles.json tag, e.g. 'Round frames' -> 'round', 'Thin/rimless frames' -> 'thin'."""
+    key = rec_name.lower().replace(" frames", "").strip()
+    return {"thin/rimless": "thin", "rimless": "thin"}.get(key, key)
+
+
+@lru_cache(maxsize=64)  # 64 > the ~13 frames we have, so every cropped PNG stays cached after its first request
+def _cropped_png(path, mtime):
+    """Trims the transparent margin (same _auto_crop the desktop app uses) so the web size slider behaves the same for every frame. mtime in the key = re-crop if the file changes."""
+    rgba = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    if rgba is None or rgba.ndim != 3 or rgba.shape[2] != 4:
+        return None
+    ok, buf = cv2.imencode('.png', _auto_crop(rgba))
+    return buf.tobytes() if ok else None
+
+
+@app.route('/glasses/<gid>.png')
+def glasses_png(gid):
+    # Only names that really exist in the folder -- never build a path from raw URL text.
+    if gid + '.png' not in os.listdir(GLASSES_DIR) or _load_glasses_styles().get(gid, {}).get("hide_on_web"):
+        abort(404)
+    path = os.path.join(GLASSES_DIR, gid + '.png')
+    data = _cropped_png(path, os.path.getmtime(path))
+    if data is None:
+        abort(404)
+    return Response(data, mimetype='image/png')
 
 
 @app.route('/api/v1/analyze', methods=['POST'])
@@ -185,10 +220,18 @@ def analyze():
         skin_swatch_hex = to_hex((sampled[2], sampled[1], sampled[0]))  # BGR -> RGB
         skin_tone_low_confidence = low_conf
 
-    glasses = [
-        {"name": rec["name"], "image": glasses_image(rec["name"]), "reason": rec["why"]}
-        for rec in get_glasses_rec(face_shape)
-    ]
+    all_glasses = list_web_glasses()
+    glasses = []
+    for rec in get_glasses_rec(face_shape):
+        matches = [g for g in all_glasses if style_key(rec["name"]) in g["styles"]]
+        glasses.append({
+            "name": rec["name"],
+            "reason": rec["why"],
+            "ids": [g["id"] for g in matches],
+            "images": [g["image"] for g in matches],
+            # Card thumbnail; falls back to the first frame if no PNG is tagged with this type yet.
+            "image": (matches or all_glasses or [{"image": None}])[0]["image"],
+        })
 
     return jsonify({
         "faceShape": face_shape,
@@ -199,6 +242,7 @@ def analyze():
         "multipleFaces": multiple_faces,
         "frontal": is_frontal_face(landmarks, w, h),
         "glasses": glasses,
+        "allGlasses": all_glasses,   # every web-visible frame, for the try-on Next/Previous buttons
         "hairstyle": get_hair_rec(gender, face_shape),
         "grooming": get_grooming_rec(gender, face_shape),
         "outfitColors": {
@@ -210,7 +254,6 @@ def analyze():
 
 if __name__ == '__main__':
     print(f"[backend_api] Face shape model mode: {FACE_SHAPE_MODE}")
-    # use_reloader=False: the reloader re-launches the script using a path
-    # relative to the process's cwd, which we deliberately chdir() above --
-    # that combination makes the reloader relaunch a nonexistent path.
+    # use_reloader=False: the reloader would load the models a second time
+    # in a child process for no benefit here.
     app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)

@@ -7,18 +7,9 @@ venv/
 .vscode/
 .claude/
 
-# Auto-downloaded model files (main.py re-downloads these if missing)
-face_landmarker.task
-blaze_face_short_range.tflite
+# Auto-downloaded MediaPipe model files (re-downloaded if missing)
+models/face_landmarker.task
+models/blaze_face_short_range.tflite
 
-# Runtime-generated data/logs (not part of the app source)
-app.log
-feedback.json
-performance_results.txt
-stress_test_log.txt
-snapshots/
-debug/
-
-# One-off report PDFs generated for the thesis (not app source)
-performance_logger_summary.pdf
-performance_stress_test_report.pdf
+# Runtime-generated output: app.log, feedback.json, snapshots/, debug/
+data/

@@ -1,0 +1,16 @@
+{
+  "_note": "Frame-type tags for each PNG in processed/, used by the web backend to match recommendations.py's frame names (e.g. 'Round frames' -> round, 'Thin/rimless frames' -> thin). A PNG with no entry still shows in the web try-on's full Next/Previous list, just not under a recommended type. hide_on_web = reason it's left out of the web version. The desktop app does not read this file.",
+  "glasses1":  {"styles": ["browline"]},
+  "glasses2":  {"styles": ["square", "wayfarer", "oversized"]},
+  "glasses3":  {"styles": ["aviator", "oversized"]},
+  "glasses4":  {"styles": ["aviator", "oversized"]},
+  "glasses5":  {"styles": ["rectangle", "thin"]},
+  "glasses6":  {"styles": ["rectangle", "thin"]},
+  "glasses7":  {"styles": ["square", "thin"]},
+  "glasses8":  {"styles": ["square", "thin"]},
+  "glasses9":  {"styles": ["round", "oval", "thin"]},
+  "glasses10": {"styles": ["square", "rectangle"]},
+  "glasses11": {"styles": ["browline", "round"]},
+  "glasses12": {"styles": ["rectangle"]},
+  "glasses13": {"styles": ["browline"], "hide_on_web": "brand logo (script lettering) on the left temple arm"}
+}

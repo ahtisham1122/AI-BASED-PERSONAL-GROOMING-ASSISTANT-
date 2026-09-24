@@ -14,10 +14,12 @@ import os
 import time
 from collections import Counter
 
+from app.paths import MODELS_DIR
+
 # ──────────────────────────────────────────
 # Download Model
 # ──────────────────────────────────────────
-MODEL_PATH = 'face_landmarker.task'
+MODEL_PATH = str(MODELS_DIR / 'face_landmarker.task')
 MODEL_URL  = (
     'https://storage.googleapis.com/mediapipe-models/'
     'face_landmarker/face_landmarker/float16/1/'
@@ -212,7 +214,7 @@ def solve_head_pose(landmarks, w, h):
 
 
 def _selftest():
-    """Synthetic, no-camera-needed correctness check for the Euler round-trip and solvePnP sign/magnitude -- run via `python face_tracking.py`."""
+    """Synthetic, no-camera-needed correctness check for the Euler round-trip and solvePnP sign/magnitude -- run via `python -m app.face_tracking` from the project root."""
     w, h = 640, 480
     cam = _camera_matrix(w, h)
     for pitch, yaw, roll in [(0.1, 0.3, -0.2), (0.0, 0.0, 0.0), (-0.4, 0.6, 0.15)]:

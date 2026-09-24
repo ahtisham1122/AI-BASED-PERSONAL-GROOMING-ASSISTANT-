@@ -23,9 +23,11 @@ import json
 import math
 from collections import namedtuple
 
+from app.paths import ASSETS_DIR
+
 GlassesAsset = namedtuple('GlassesAsset', ['img', 'anchor_left', 'anchor_right', 'name'])
 
-ANCHORS_PATH = os.path.join('assets', 'glasses', 'glasses_anchors.json')
+ANCHORS_PATH = str(ASSETS_DIR / 'glasses' / 'glasses_anchors.json')
 
 # How pronounced the perspective foreshortening looks as the head
 # turns (see module docstring — there's no real camera calibration to
@@ -129,7 +131,7 @@ def _save_anchor_file(data):
         print(f"[ar_overlay] Couldn't save {ANCHORS_PATH}: {e}")
 
 
-def load_glasses(folder='assets/glasses'):
+def load_glasses(folder=str(ASSETS_DIR / 'glasses')):
     """
     Loads every PNG in `folder`, auto-crops each to its visible
     content, feathers the alpha edge, and resolves lens-anchor

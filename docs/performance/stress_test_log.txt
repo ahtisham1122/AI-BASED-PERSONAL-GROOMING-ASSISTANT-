@@ -1,0 +1,30 @@
+AI Grooming Assistant - Stress Test Log
+========================================
+
+Case 1: No face in view -> should not crash, should show a prompt
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 2: Sideways face -> frame should be skipped
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 3: Very dark or very bright light -> skin tone should show low confidence or stay empty
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 4: Two faces in frame -> should use the largest face only
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 5: Rapid key presses (pressing N, P, D quickly) -> should not crash
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 6: Long run, about 30 minutes -> memory and speed should stay stable
+  Result (PASS/FAIL): 
+  Notes: 
+
+Case 7: Model files removed/renamed -> app should fall back to rule-based mode with a visible badge
+  Result (PASS/FAIL): 
+  Notes: 

@@ -1,0 +1,49 @@
+Face shape CNN evaluation -- 2026-09-25 03:42
+Test folder: D:\face_shape_dataset\testing_set
+TFLite: D:\fyp\models\face_shape_cnn.tflite
+Keras:  D:\fyp\models\face_shape_cnn.keras
+Preprocessing: app's own _crop_and_resize (BlazeFace, square box + 25% margin, black padding, 224x224), BGR->RGB, raw 0-255 float32
+
+Images found: 1001   evaluated: 1000   skipped (no face detected): 0 {'Heart': 0, 'Oblong': 0, 'Oval': 0, 'Round': 0, 'Square': 0}   unreadable: 1
+
+== TFLite ==
+Accuracy: 60.00%  (600/1000)
+Average prediction time: 54.82 ms (model call only, crop excluded)
+
+Class    Precision    Recall        F1   Support
+Heart        0.526     0.755     0.620       200
+Oblong       0.716     0.680     0.697       200
+Oval         0.629     0.280     0.388       200
+Round        0.634     0.590     0.611       200
+Square       0.560     0.695     0.621       200
+Macro F1                         0.587
+
+Confusion matrix (rows = true, columns = predicted):
+            Heart  Oblong    Oval   Round  Square
+Heart         151       8       8       9      24
+Oblong         38     136       5       7      14
+Oval           55      20      56      33      36
+Round          24       8      15     118      35
+Square         19      18       5      19     139
+
+== Keras ==
+Accuracy: 59.90%  (599/1000)
+Average prediction time: 165.08 ms (model call only, crop excluded)
+
+Class    Precision    Recall        F1   Support
+Heart        0.541     0.700     0.610       200
+Oblong       0.713     0.645     0.677       200
+Oval         0.540     0.335     0.414       200
+Round        0.638     0.635     0.637       200
+Square       0.574     0.680     0.622       200
+Macro F1                         0.592
+
+Confusion matrix (rows = true, columns = predicted):
+            Heart  Oblong    Oval   Round  Square
+Heart         140      11      15      11      23
+Oblong         39     129      13       7      12
+Oval           49      18      67      33      33
+Round          14       7      19     127      33
+Square         17      16      10      21     136
+
+TFLite and Keras agree on 91.60% of images

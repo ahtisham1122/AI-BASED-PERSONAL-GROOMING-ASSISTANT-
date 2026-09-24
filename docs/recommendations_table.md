@@ -1,6 +1,6 @@
 # Recommendations Table
 
-Generated from recommendations.py — regenerate with `python print_recommendations_table.py` after editing that file.
+Generated from recommendations.py — regenerate with `python tools/print_recommendations_table.py` after editing that file.
 
 ## Hairstyle (3 options per face shape, per gender)
 

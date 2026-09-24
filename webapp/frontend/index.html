@@ -219,11 +219,18 @@
           <div class="tryon-flex-wrapper">
             <div id="tryonContainer" class="tryon-container">
               <img id="tryonFace" src="" alt="User face for try-on preview" class="tryon-face">
-              <img id="tryonGlassesOverlay" src="assets/glasses/rectangle.svg" alt="Glasses Overlay" class="tryon-glasses-overlay">
+              <img id="tryonGlassesOverlay" alt="Glasses overlay" class="tryon-glasses-overlay" hidden>
             </div>
             <div class="tryon-info-box">
-              <div id="tryonGlassesTitle" class="tryon-active-title">Rectangle Frames</div>
-              <p id="tryonGlassesReason" class="tryon-active-desc">Structured frames add definition and complement balanced facial proportions.</p>
+              <div id="tryonGlassesTitle" class="tryon-active-title">Glasses Try-On</div>
+              <p id="tryonGlassesReason" class="tryon-active-desc">Pick a recommended style below, or browse every frame with Previous / Next.</p>
+
+              <!-- Browse ALL available frames, not only the recommended ones -->
+              <div class="tryon-nav">
+                <button type="button" id="tryonPrevBtn" class="preset-btn-sm" aria-label="Previous glasses">&#8249; Previous</button>
+                <span id="tryonCounter" class="tryon-counter">0 / 0</span>
+                <button type="button" id="tryonNextBtn" class="preset-btn-sm" aria-label="Next glasses">Next &#8250;</button>
+              </div>
 
               <!-- Interactive Alignment Controls -->
               <div class="tryon-controls-panel">

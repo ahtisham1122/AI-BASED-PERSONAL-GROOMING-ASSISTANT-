@@ -17,6 +17,8 @@ import time
 import urllib.request
 import mediapipe as mp
 
+from app.paths import MODELS_DIR, DATA_DIR, DATASET_DIR
+
 # ──────────────────────────────────────────
 # Rule-based fallback (geometric ratios)
 # ──────────────────────────────────────────
@@ -120,9 +122,9 @@ def classify_face_shape(landmarks, w, h):
 # ──────────────────────────────────────────
 # CNN model loading (tflite -> keras -> rule-based)
 # ──────────────────────────────────────────
-CLASS_NAMES_PATH = 'class_names.json'
-TFLITE_PATH      = 'face_shape_cnn.tflite'
-KERAS_PATH       = 'face_shape_cnn.keras'
+CLASS_NAMES_PATH = str(MODELS_DIR / 'class_names.json')
+TFLITE_PATH      = str(MODELS_DIR / 'face_shape_cnn.tflite')
+KERAS_PATH       = str(MODELS_DIR / 'face_shape_cnn.keras')
 IMG_SIZE         = 224
 MARGIN           = 0.25  # extra margin around the face box, matches the training crop
 
@@ -243,7 +245,7 @@ def is_face_near_edge(landmarks, w, h):
 # visually via debug crops: hairline cut off, neck/collar visible at
 # the bottom). Using the actual detector here matches the training
 # framing instead of approximating it.
-FACE_DETECTOR_PATH = 'blaze_face_short_range.tflite'
+FACE_DETECTOR_PATH = str(MODELS_DIR / 'blaze_face_short_range.tflite')
 FACE_DETECTOR_URL = (
     'https://storage.googleapis.com/mediapipe-models/'
     'face_detector/blaze_face_short_range/float16/1/'
@@ -376,7 +378,7 @@ def get_last_inference_ms():
 
 def _sample_training_crop():
     """Grabs one random dataset image and crops it the same way, for a framing comparison."""
-    paths = glob.glob('face_shape_dataset/testing_set/*/*')
+    paths = glob.glob(str(DATASET_DIR / 'testing_set' / '*' / '*'))
     if not paths:
         return None
     img = cv2.imread(random.choice(paths))
@@ -386,7 +388,7 @@ def _sample_training_crop():
     return _crop_and_resize(img, w, h)
 
 
-def save_debug_crop(frame_bgr, landmarks, w, h, folder='debug'):
+def save_debug_crop(frame_bgr, landmarks, w, h, folder=str(DATA_DIR / 'debug')):
     """
     Saves the exact 224x224 crop the CNN would be fed right now,
     next to a same-size crop of a random training image (same crop

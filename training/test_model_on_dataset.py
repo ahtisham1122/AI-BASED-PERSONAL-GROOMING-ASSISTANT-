@@ -13,14 +13,16 @@ import random
 import glob
 import tensorflow as tf
 
-import face_shape_model as fsm
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))  # project root
+from app import face_shape_model as fsm
+from app.paths import DATASET_DIR
 
 random.seed(42)
 
 # Load both models directly here, independent of which one face_shape_model
 # itself picked (MODE only loads keras if tflite failed to load).
-keras_model = tf.keras.models.load_model('face_shape_cnn.keras')
-interpreter  = tf.lite.Interpreter(model_path='face_shape_cnn.tflite')
+keras_model = tf.keras.models.load_model(fsm.KERAS_PATH)
+interpreter  = tf.lite.Interpreter(model_path=fsm.TFLITE_PATH)
 interpreter.allocate_tensors()
 in_idx  = interpreter.get_input_details()[0]['index']
 out_idx = interpreter.get_output_details()[0]['index']
@@ -28,7 +30,7 @@ out_idx = interpreter.get_output_details()[0]['index']
 SHAPES = ['Heart', 'Oblong', 'Oval', 'Round', 'Square']
 samples = []
 for shape in SHAPES:
-    paths = glob.glob(f'face_shape_dataset/testing_set/{shape}/*')
+    paths = glob.glob(str(DATASET_DIR / 'testing_set' / shape / '*'))
     samples.extend((p, shape) for p in random.sample(paths, min(4, len(paths))))
 
 keras_correct  = 0

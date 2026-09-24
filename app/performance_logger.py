@@ -12,7 +12,7 @@ Used from main.py like this:
     if key == ord('l'):
         perf_logger.save_log()
 
-Can also be run directly (`python performance_logger.py`) to just
+Can also be run directly (`python -m app.performance_logger`) to just
 (re)create the stress_test_log.txt checklist without starting the app.
 """
 import os
@@ -20,6 +20,8 @@ import time
 from datetime import datetime
 
 import psutil
+
+from app.paths import DATA_DIR, ROOT
 
 
 # ── Stress test checklist (Section 6.9) ──────────────────────────────
@@ -34,7 +36,7 @@ STRESS_CASES = [
 ]
 
 
-def write_stress_test_log(path='stress_test_log.txt'):
+def write_stress_test_log(path=str(ROOT / 'docs' / 'performance' / 'stress_test_log.txt')):
     """Creates the pre-filled stress test checklist if it doesn't already exist (never overwrites your notes)."""
     if os.path.exists(path):
         return
@@ -66,7 +68,7 @@ class PerformanceLogger(object):
     MEMORY_CHECK_SECONDS = 3
     SUMMARY_SECONDS      = 5
 
-    def __init__(self, app_log_path='app.log'):
+    def __init__(self, app_log_path=str(DATA_DIR / 'app.log')):
         self._process = psutil.Process(os.getpid())
         self._app_log_path = app_log_path
 
@@ -137,7 +139,7 @@ class PerformanceLogger(object):
             print(f"[perf] app.log grew -- error #{self.error_count} logged, check app.log for the traceback")
         self._last_log_size = size
 
-    def save_log(self, path='performance_results.txt'):
+    def save_log(self, path=str(ROOT / 'docs' / 'performance' / 'performance_results.txt')):
         """Appends the current averages, with a timestamp, to performance_results.txt (call on the 'L' key)."""
         with open(path, 'a') as f:
             f.write(f"[{datetime.now().isoformat(timespec='seconds')}]\n")

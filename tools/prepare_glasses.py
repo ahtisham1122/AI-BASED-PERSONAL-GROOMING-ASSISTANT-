@@ -22,9 +22,10 @@ import cv2
 import numpy as np
 import os
 
-SOURCE_DIR = os.path.join('assets', 'glasses')
+SOURCE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'glasses')
 OUT_DIR = os.path.join(SOURCE_DIR, 'processed')
 PREVIEW_PATH = os.path.join(SOURCE_DIR, 'glasses_preview.png')
+ORIGINALS_DIR = os.path.join(SOURCE_DIR, 'originals')  # clean_glasses.py backups
 VALID_EXTS = ('.png', '.jpg', '.jpeg', '.webp')
 
 CLEAR_LENS_ALPHA = 0.20    # "mostly see-through" clear glass
@@ -216,13 +217,18 @@ def main():
 
     for f in files:
         path = os.path.join(SOURCE_DIR, f)
+        out_name = os.path.splitext(f)[0] + '.png'
+        # A backup in originals/ means clean_glasses.py hand-erased this one's
+        # arms -- regenerating it would silently throw that work away.
+        if os.path.exists(os.path.join(ORIGINALS_DIR, out_name)):
+            print(f"Skipping {f} (hand-cleaned; delete originals/{out_name} to regenerate)")
+            continue
         print(f"Processing {f}...")
         rgba, method = process_one(path)
         results[method].append(f)
         if rgba is None:
             print(f"    FAILED to read/process {f}")
             continue
-        out_name = os.path.splitext(f)[0] + '.png'
         out_path = os.path.join(OUT_DIR, out_name)
         cv2.imwrite(out_path, rgba)
         entries.append((out_name, rgba))

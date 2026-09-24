@@ -15,7 +15,9 @@ import os
 from datetime import datetime, timezone
 from collections import defaultdict
 
-FEEDBACK_PATH = 'feedback.json'
+from app.paths import DATA_DIR
+
+FEEDBACK_PATH = str(DATA_DIR / 'feedback.json')
 
 # In-memory cache keyed on the file's mtime, so recommendations.py can
 # call the lookup functions every frame without re-reading/parsing the

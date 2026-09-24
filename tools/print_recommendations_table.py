@@ -3,7 +3,9 @@ One-off: prints every recommendation cell for review, and writes the
 same content to recommendations_table.md. Reads directly from
 recommendations.py so the doc can never drift from the real data.
 """
-import recommendations as rec
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))  # project root
+from app import recommendations as rec
+from app.paths import ROOT
 
 SHAPES = ["Oval", "Round", "Square", "Heart", "Oblong"]
 TONES  = ["Very Light", "Light", "Medium", "Tan", "Brown", "Deep"]
@@ -19,7 +21,7 @@ def out(text=""):
 out("# Recommendations Table")
 out()
 out("Generated from recommendations.py — regenerate with "
-    "`python print_recommendations_table.py` after editing that file.")
+    "`python tools/print_recommendations_table.py` after editing that file.")
 out()
 
 # ── Hairstyle ──
@@ -76,7 +78,7 @@ for tone in TONES:
     status = "OK" if len(colors) >= 2 else f"ONLY {len(colors)}"
     out(f"- **{tone}** ({status}): {', '.join(colors)}")
 
-with open('recommendations_table.md', 'w', encoding='utf-8') as f:
+with open(ROOT / 'docs' / 'recommendations_table.md', 'w', encoding='utf-8') as f:
     f.write('\n'.join(lines) + '\n')
 
 print("\n\n=== Saved to recommendations_table.md ===")

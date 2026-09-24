@@ -19,33 +19,34 @@ try:
 except Exception:
     pass
 
-from voice_assistant import VoiceAssistant
-from face_tracking import (
+from app.voice_assistant import VoiceAssistant
+from app.face_tracking import (
     create_landmarker, FrameTimestamper, detect_landmarks,
     get_head_yaw, StableDetector, OneEuroFilter,
     solve_head_pose, euler_to_rotation_matrix,
 )
-from face_shape_model import (
+from app.face_shape_model import (
     MODE as FACE_SHAPE_MODE, classify_face_shape, CNNFaceShapeClassifier,
     is_frontal_face, is_face_near_edge, save_debug_crop, get_last_inference_ms,
 )
-from skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
-from recommendations import get_suggested_glasses
-from ar_overlay import (
+from app.skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
+from app.recommendations import get_suggested_glasses
+from app.ar_overlay import (
     load_glasses, compute_glasses_geometry, build_glasses_corners, warp_and_blend_glasses,
 )
-from ui import (
+from app.ui import (
     show_gender_selection, UIRenderer, build_ui_state, draw_notification, draw_rating_prompt,
     hit_test_tab, next_tab,
 )
-import feedback
-from performance_logger import PerformanceLogger
+from app import feedback
+from app.paths import ASSETS_DIR, DATA_DIR
+from app.performance_logger import PerformanceLogger
 
 # Any unexpected exception during the main loop gets logged here (with
 # a full traceback) instead of taking the app down — see the try/except
 # wrapped around the per-frame body in main().
 logging.basicConfig(
-    filename='app.log',
+    filename=str(DATA_DIR / 'app.log'),
     level=logging.ERROR,
     format='%(asctime)s %(levelname)s %(message)s',
 )
@@ -53,7 +54,7 @@ logging.basicConfig(
 
 def save_snapshot(frame):
     """Save current frame as image."""
-    folder = 'snapshots'
+    folder = str(DATA_DIR / 'snapshots')
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(
         folder,
@@ -70,9 +71,9 @@ def main():
 
     # ── Load glasses ──
     # Loads from processed/ -- the prepare_glasses.py output (backgrounds
-    # removed, lenses made see-through). Run `python prepare_glasses.py`
+    # removed, lenses made see-through). Run `python tools/prepare_glasses.py`
     # by hand whenever new images are added to assets/glasses/.
-    glasses_list, glasses_names = load_glasses('assets/glasses/processed')
+    glasses_list, glasses_names = load_glasses(str(ASSETS_DIR / 'glasses' / 'processed'))
     glasses_idx = 0
     suggested   = list(range(len(glasses_list)))
 

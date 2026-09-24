@@ -1,17 +1,20 @@
 """
 One-off: exercises the new UIRenderer against a few different states
 (analyzing, locked-high-confidence, near-edge) using a real photo as
-the stand-in camera frame, and saves debug/ui_preview.jpg.
+the stand-in camera frame, and saves data/debug/ui_preview.jpg.
 """
 import cv2
 import glob
 import os
 
-from ui import UIRenderer, build_ui_state
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))  # project root
+from app.paths import DATASET_DIR, DATA_DIR
+from app.ui import UIRenderer, build_ui_state
 
-os.makedirs('debug', exist_ok=True)
+DEBUG_DIR = DATA_DIR / 'debug'
+os.makedirs(DEBUG_DIR, exist_ok=True)
 
-frame = cv2.imread(glob.glob('face_shape_dataset/testing_set/Oval/*')[0])
+frame = cv2.imread(glob.glob(str(DATASET_DIR / 'testing_set' / 'Oval' / '*'))[0])
 frame = cv2.resize(frame, (640, 480))
 
 renderer = UIRenderer()
@@ -28,8 +31,8 @@ state = build_ui_state(
     glasses_idx=0, glasses_names=glasses_names, suggested=[0, 1, 2, 3], total_glasses=4,
 )
 out1 = renderer.render(frame, state)
-cv2.imwrite('debug/ui_preview.jpg', out1)
-print("saved debug/ui_preview.jpg", out1.shape)
+cv2.imwrite(str(DEBUG_DIR) + '/ui_preview.jpg', out1)
+print("saved data/debug/ui_preview.jpg", out1.shape)
 
 # 2) Analyzing, near edge, cnn busy, mic off, glasses not recommended, low confidence colors unaffected
 state2 = build_ui_state(
@@ -40,8 +43,8 @@ state2 = build_ui_state(
     glasses_idx=2, glasses_names=glasses_names, suggested=[0, 3], total_glasses=4,
 )
 out2 = renderer.render(frame, state2)
-cv2.imwrite('debug/ui_preview_analyzing.jpg', out2)
-print("saved debug/ui_preview_analyzing.jpg", out2.shape)
+cv2.imwrite(str(DEBUG_DIR) + '/ui_preview_analyzing.jpg', out2)
+print("saved data/debug/ui_preview_analyzing.jpg", out2.shape)
 
 # 3) Locked, low confidence (red bar), deep skin tone
 state3 = build_ui_state(
@@ -52,5 +55,5 @@ state3 = build_ui_state(
     glasses_idx=3, glasses_names=glasses_names, suggested=[1, 3], total_glasses=4,
 )
 out3 = renderer.render(frame, state3)
-cv2.imwrite('debug/ui_preview_lowconf.jpg', out3)
-print("saved debug/ui_preview_lowconf.jpg", out3.shape)
+cv2.imwrite(str(DEBUG_DIR) + '/ui_preview_lowconf.jpg', out3)
+print("saved data/debug/ui_preview_lowconf.jpg", out3.shape)

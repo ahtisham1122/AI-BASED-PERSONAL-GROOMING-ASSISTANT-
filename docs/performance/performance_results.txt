@@ -1,0 +1,63 @@
+[2026-09-24T03:35:18]
+  Avg FPS: 27.0
+  Avg CNN inference time: 72.8 ms
+  Avg analysis-to-lock time (~30-frame average): 6585 ms
+  Memory (RSS): 536.5 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:24]
+  Avg FPS: 27.6
+  Avg CNN inference time: 72.8 ms
+  Avg analysis-to-lock time (~30-frame average): 6585 ms
+  Memory (RSS): 536.6 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:29]
+  Avg FPS: 28.6
+  Avg CNN inference time: 72.9 ms
+  Avg analysis-to-lock time (~30-frame average): 6585 ms
+  Memory (RSS): 536.7 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:36]
+  Avg FPS: 28.0
+  Avg CNN inference time: 73.2 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 538.5 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:37]
+  Avg FPS: 27.9
+  Avg CNN inference time: 73.3 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 538.5 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:38]
+  Avg FPS: 27.9
+  Avg CNN inference time: 73.3 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 538.5 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:45]
+  Avg FPS: 27.3
+  Avg CNN inference time: 73.6 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 545.8 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:48]
+  Avg FPS: 27.1
+  Avg CNN inference time: 73.5 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 545.8 MB
+  app.log growth events this session: 0
+
+[2026-09-24T03:35:55]
+  Avg FPS: 27.7
+  Avg CNN inference time: 72.1 ms
+  Avg analysis-to-lock time (~30-frame average): 6832 ms
+  Memory (RSS): 545.7 MB
+  app.log growth events this session: 0
+

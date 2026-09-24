@@ -11,10 +11,12 @@ import cv2
 import glob
 import time
 
-from ui import UIRenderer, build_ui_state, _fit_frame, VIDEO_W, VIDEO_H
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))  # project root
+from app.paths import DATASET_DIR
+from app.ui import UIRenderer, build_ui_state, _fit_frame, VIDEO_W, VIDEO_H
 
 N = 300
-frame = cv2.imread(glob.glob('face_shape_dataset/testing_set/Oval/*')[0])
+frame = cv2.imread(glob.glob(str(DATASET_DIR / 'testing_set' / 'Oval' / '*'))[0])
 frame = cv2.resize(frame, (640, 480))
 
 glasses_names = ["aviator", "round", "square", "wayfarer"]

@@ -1,6 +1,6 @@
 """Style recommendation tables (hairstyle, grooming, glasses, outfit colors) and lookups."""
 
-import feedback
+from app import feedback
 
 # Each face shape maps to 3 suggestions with a one-line reason, so the
 # UI can show "why" under each option instead of just a bare label.

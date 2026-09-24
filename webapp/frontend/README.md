@@ -18,11 +18,7 @@ ai-grooming-assistant/
 │
 ├── index.html          # Single Page Application HTML structure
 ├── style.css           # Vanilla CSS3 design system, tokens & responsive layouts
-├── script.js           # State management, validation, mock API simulator & DOM renderer
-│
-├── assets/
-│   ├── glasses/        # Visual glasses frame assets (rectangle, round, wayfarer, aviator)
-│   └── icons/          # SVG icons
+├── script.js           # State management, validation, API call & DOM renderer
 │
 └── README.md           # Project documentation & integration guide
 ```
@@ -97,37 +93,29 @@ async function analyzeImage(file, gender, occasion) {
 
 ### Expected API Response Format
 
-Your API endpoint should return a JSON response formatted as follows:
+The glasses images are NOT stored in the frontend. The backend serves the same transparent PNGs the desktop AR try-on uses (`assets/glasses/processed/` at the project root) at `http://localhost:5001/glasses/<id>.png`, so a new PNG added there shows up in both apps. `assets/glasses/glasses_styles.json` tags each PNG with frame types (round, rectangle, aviator, ...).
+
+Glasses part of the response (shortened):
 
 ```json
 {
-  "faceShape": "Oval",
-  "skinTone": "Warm",
-  "confidence": 92,
+  "faceShape": "Round",
   "glasses": [
     {
-      "name": "Rectangle Frames",
-      "image": "assets/glasses/rectangle.svg",
-      "reason": "Structured frames complement the balanced proportions of an oval face."
-    },
-    {
-      "name": "Round Frames",
-      "image": "assets/glasses/round.svg",
-      "reason": "Round frames create a softer contrast with your facial structure."
-    },
-    {
-      "name": "Wayfarer Frames",
-      "image": "assets/glasses/wayfarer.svg",
-      "reason": "Wayfarer frames add definition while maintaining balance."
-    },
-    {
-      "name": "Aviator Frames",
-      "image": "assets/glasses/aviator.svg",
-      "reason": "Aviator frames add a stylish contrast to your facial proportions."
+      "name": "Browline frames",
+      "reason": "A strong top line adds structure above the cheeks",
+      "ids": ["glasses1", "glasses11"],
+      "images": ["http://localhost:5001/glasses/glasses1.png", "http://localhost:5001/glasses/glasses11.png"],
+      "image": "http://localhost:5001/glasses/glasses1.png"
     }
+  ],
+  "allGlasses": [
+    {"id": "glasses1", "styles": ["browline"], "image": "http://localhost:5001/glasses/glasses1.png"}
   ]
 }
 ```
+
+`glasses` = the recommended frame types with every matching PNG; `allGlasses` = every frame, used by the try-on's Previous / Next buttons.
 
 ---
 
