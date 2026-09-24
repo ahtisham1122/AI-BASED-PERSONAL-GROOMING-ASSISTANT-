@@ -6,10 +6,24 @@ import time
 import logging
 import traceback
 
+# Windows stretches/blurs the window when it thinks the app is DPI-
+# unaware on a scaled display (125%/150% scaling is common on laptops),
+# which is a big part of why the UI can look jagged. Telling Windows
+# this process handles its own DPI (PROCESS_PER_MONITOR_DPI_AWARE = 2)
+# before any window is created fixes that. try/except because
+# shcore/SetProcessDpiAwareness only exists on Windows 8.1+ -- this
+# must silently no-op on any other OS.
+try:
+    import ctypes
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    pass
+
 from voice_assistant import VoiceAssistant
 from face_tracking import (
     create_landmarker, FrameTimestamper, detect_landmarks,
     get_head_yaw, StableDetector, OneEuroFilter,
+    solve_head_pose, euler_to_rotation_matrix,
 )
 from face_shape_model import (
     MODE as FACE_SHAPE_MODE, classify_face_shape, CNNFaceShapeClassifier,
@@ -17,7 +31,9 @@ from face_shape_model import (
 )
 from skin_tone import correct_lighting, sample_skin_color, classify_skin_tone
 from recommendations import get_suggested_glasses
-from ar_overlay import load_glasses, overlay_glasses
+from ar_overlay import (
+    load_glasses, compute_glasses_geometry, build_glasses_corners, warp_and_blend_glasses,
+)
 from ui import (
     show_gender_selection, UIRenderer, build_ui_state, draw_notification, draw_rating_prompt,
     hit_test_tab, next_tab,
@@ -53,7 +69,10 @@ def main():
     gender = show_gender_selection()
 
     # ── Load glasses ──
-    glasses_list, glasses_names = load_glasses('assets/glasses')
+    # Loads from processed/ -- the prepare_glasses.py output (backgrounds
+    # removed, lenses made see-through). Run `python prepare_glasses.py`
+    # by hand whenever new images are added to assets/glasses/.
+    glasses_list, glasses_names = load_glasses('assets/glasses/processed')
     glasses_idx = 0
     suggested   = list(range(len(glasses_list)))
 
@@ -81,7 +100,13 @@ def main():
     # ── Stable detectors / smoothing ──
     shape_det  = StableDetector(30, 22)  # only used in rule-based fallback mode
     tone_det   = StableDetector(40, 30)
-    smoother   = OneEuroFilter()
+
+    # ── AR glasses smoothing: position/scale and head-pose angles get
+    # separate One Euro filters since they behave differently (a small
+    # position wobble matters more than a small angle wobble) — tuned
+    # per the FYP spec's given constants. ──
+    glasses_pos_filter   = OneEuroFilter(min_cutoff=1.0, beta=0.08)  # [center_x, center_y, width], pixels
+    glasses_angle_filter = OneEuroFilter(min_cutoff=0.8, beta=0.05)  # [pitch, yaw, roll], degrees
 
     # ── Face shape: CNN on a background thread, or the rule-based fallback ──
     cnn_classifier = CNNFaceShapeClassifier() if FACE_SHAPE_MODE != 'rule-based' else None
@@ -108,6 +133,23 @@ def main():
     landmarks       = None
     corrected       = None
 
+    # ── AR glasses: off by default, toggled by the Glasses tab / G key ──
+    glasses_on = False
+    # Fully faded in (1.0) or out (0.0) -- ramps at 1/GLASSES_FADE_SECONDS
+    # per second, so turning glasses on/off (or losing/regaining the
+    # face) doesn't pop.
+    glasses_alpha = 0.0
+    GLASSES_FADE_SECONDS = 0.2
+    # Past this yaw, the glasses would sit flat on a face we're mostly
+    # seeing edge-on and look obviously wrong -- fade out instead.
+    GLASSES_MAX_YAW_DEG = 35
+    # Last successfully-placed corners, kept so a fade-out (face lost,
+    # or turned away) has something to keep drawing at reduced alpha
+    # instead of vanishing mid-fade.
+    glasses_last_src = None
+    glasses_last_dst = None
+    glasses_last_asset = None
+
     # ── Feedback rating flow (off/inactive until R is pressed) ──
     rating_stage              = None  # None, 'hairstyle', or 'glasses'
     rating_hair_suggestion    = None
@@ -129,7 +171,7 @@ def main():
     consecutive_failures = 0
 
     print("App started!")
-    print("N=Next glasses  P=Prev  V=Toggle voice  S=Save  A=Re-analyze  "
+    print("N=Next glasses  P=Prev  G=Toggle glasses  V=Toggle voice  S=Save  A=Re-analyze  "
           "R=Rate suggestions  Shift+R=Clear feedback  C=Reset  D=Debug crop  "
           "L=Log performance  [ ]=Switch tab  Q=Quit")
 
@@ -140,11 +182,16 @@ def main():
     cv2.namedWindow(window_name)
 
     def on_click(event, x, y, flags, param):
-        nonlocal active_tab
+        nonlocal active_tab, glasses_on
         if event == cv2.EVENT_LBUTTONDOWN:
             tab = hit_test_tab(x, y)
             if tab:
                 active_tab = tab
+                if tab == 'glasses':
+                    # Clicking the Glasses tab both shows that panel
+                    # AND toggles the AR overlay on/off (click again to
+                    # turn it back off) -- same toggle the G key does.
+                    glasses_on = not glasses_on
 
     cv2.setMouseCallback(window_name, on_click)
 
@@ -187,7 +234,8 @@ def main():
             frame_count += 1
 
             now = time.perf_counter()
-            instant_fps = 1.0 / max(now - last_tick, 1e-6)
+            frame_dt = max(now - last_tick, 1e-6)  # real elapsed time this frame took -- used below for the glasses fade and One Euro filters
+            instant_fps = 1.0 / frame_dt
             fps_ema = 0.9 * fps_ema + 0.1 * instant_fps
             last_tick = now
             perf_logger.tick(fps_ema, analyzing, get_last_inference_ms())
@@ -202,6 +250,15 @@ def main():
                 rgb            = cv2.cvtColor(corrected, cv2.COLOR_BGR2RGB)
                 landmarks, multiple_faces = detect_landmarks(landmarker, timestamper, rgb)
                 face_present   = landmarks is not None
+
+                # Head pose (yaw/pitch/roll), computed every single
+                # frame a face is present -- never throttled/skipped
+                # like the CNN or rule-based sampling below, since the
+                # AR glasses need it every frame to stay jitter-free
+                # and to know instantly when the head turns away.
+                pose_ok, _rvec, _tvec, pose_angles = (False, None, None, None)
+                if landmarks is not None:
+                    pose_ok, _rvec, _tvec, pose_angles = solve_head_pose(landmarks, w, h)
 
                 if landmarks is not None:
                     # ── Rule-based face shape + skin tone, every 15 frames ──
@@ -241,62 +298,58 @@ def main():
 
                     if face_shape:
                         suggested = get_suggested_glasses(face_shape, len(glasses_list))
-
-                    # ── AR Glasses ──
-                    if glasses_list:
-                        lo = landmarks[33]
-                        ro = landmarks[263]
-                        lc = landmarks[468] \
-                            if len(landmarks) > 468 \
-                            else landmarks[33]
-                        rc = landmarks[473] \
-                            if len(landmarks) > 468 \
-                            else landmarks[263]
-
-                        lc_px = (int(lc.x * w), int(lc.y * h))
-                        rc_px = (int(rc.x * w), int(rc.y * h))
-                        lo_px = (int(lo.x * w), int(lo.y * h))
-                        ro_px = (int(ro.x * w), int(ro.y * h))
-
-                        eye_dist = abs(ro_px[0] - lo_px[0])
-                        gw       = int(eye_dist * 1.8)
-
-                        if gw > 10:
-                            gi       = glasses_list[glasses_idx]
-                            oh, ow   = gi.shape[:2]
-                            aspect   = oh / ow
-                            gh       = int(gw * aspect)
-                            cx       = (lc_px[0] + rc_px[0]) // 2
-                            cy       = (lc_px[1] + rc_px[1]) // 2
-                            angle    = np.degrees(
-                                np.arctan2(
-                                    rc_px[1] - lc_px[1],
-                                    rc_px[0] - lc_px[0]
-                                )
-                            )
-                            x1 = cx - gw // 2
-                            y1 = cy - int(gh * 0.45)
-
-                            vals     = np.array(
-                                [x1, y1, gw, gh, angle],
-                                dtype=float
-                            )
-                            smoothed = smoother.smooth(vals)
-
-                            frame = overlay_glasses(
-                                frame,
-                                gi,
-                                int(smoothed[0]),
-                                int(smoothed[1]),
-                                int(smoothed[2]),
-                                int(smoothed[3]),
-                                float(smoothed[4])
-                            )
                 else:
-                    smoother.reset()
                     near_edge = False
                     if cnn_classifier is not None:
                         cnn_classifier.note_face_seen(False)
+
+                # ── AR Glasses: off by default, toggled on by the
+                # Glasses tab / G key. Runs independently of the
+                # landmarks/CNN block above because it needs to keep
+                # animating (fading out) even on the very frame the
+                # face disappears or turns too far away, rather than
+                # just cutting off. ──
+                yaw_deg = pose_angles[1] if pose_ok else 0.0
+                glasses_should_show = (
+                    glasses_on and bool(glasses_list) and landmarks is not None
+                    and pose_ok and abs(yaw_deg) <= GLASSES_MAX_YAW_DEG
+                )
+                target_alpha = 1.0 if glasses_should_show else 0.0
+                alpha_step = frame_dt / GLASSES_FADE_SECONDS
+                if glasses_alpha < target_alpha:
+                    glasses_alpha = min(target_alpha, glasses_alpha + alpha_step)
+                else:
+                    glasses_alpha = max(target_alpha, glasses_alpha - alpha_step)
+
+                if glasses_alpha > 0.001 and glasses_list:
+                    if landmarks is not None and pose_ok:
+                        gw_raw, cx_raw, cy_raw = compute_glasses_geometry(landmarks, w, h)
+                        pos_smoothed = glasses_pos_filter.smooth(
+                            np.array([cx_raw, cy_raw, gw_raw], dtype=float), t=now)
+                        angle_smoothed = glasses_angle_filter.smooth(
+                            np.array(pose_angles, dtype=float), t=now)
+                        R_smoothed = euler_to_rotation_matrix(*np.radians(angle_smoothed))
+                        glasses_asset = glasses_list[glasses_idx]
+                        glasses_last_src, glasses_last_dst = build_glasses_corners(
+                            glasses_asset, pos_smoothed[2],
+                            (pos_smoothed[0], pos_smoothed[1]), R_smoothed,
+                        )
+                        glasses_last_asset = glasses_asset
+                        frame = warp_and_blend_glasses(
+                            frame, glasses_asset, glasses_last_src, glasses_last_dst, glasses_alpha)
+                    elif glasses_last_dst is not None:
+                        # Face/pose unavailable this frame -- keep
+                        # drawing at the last known placement while
+                        # fading out, instead of vanishing mid-fade.
+                        frame = warp_and_blend_glasses(
+                            frame, glasses_last_asset, glasses_last_src, glasses_last_dst, glasses_alpha)
+                elif glasses_last_dst is not None:
+                    # Fully faded out -- clear the smoothing state so a
+                    # face reappearing later starts fresh instead of
+                    # interpolating in from a stale position.
+                    glasses_pos_filter.reset()
+                    glasses_angle_filter.reset()
+                    glasses_last_src = glasses_last_dst = glasses_last_asset = None
 
                 # ── Voice commands ──
                 if voice_enabled:
@@ -316,19 +369,19 @@ def main():
                             command, context
                         )
 
-                        # Handle action commands
+                        # Handle action commands (glasses only actually
+                        # change while they're turned on -- see the G
+                        # key / Glasses tab toggle)
                         if command == 'next_glasses' \
-                                and glasses_list:
+                                and glasses_list and glasses_on:
                             glasses_idx = (
                                 glasses_idx + 1
                             ) % len(glasses_list)
-                            smoother.reset()
                         elif command == 'prev_glasses' \
-                                and glasses_list:
+                                and glasses_list and glasses_on:
                             glasses_idx = (
                                 glasses_idx - 1
                             ) % len(glasses_list)
-                            smoother.reset()
                         elif command == 'quit':
                             voice.speak(response)
                             break
@@ -429,17 +482,18 @@ def main():
                 elif key == ord('q'):
                     break
 
-                elif key == ord('n') and glasses_list:
+                elif key == ord('n') and glasses_list and glasses_on:
                     glasses_idx = (
                         glasses_idx + 1
                     ) % len(glasses_list)
-                    smoother.reset()
 
-                elif key == ord('p') and glasses_list:
+                elif key == ord('p') and glasses_list and glasses_on:
                     glasses_idx = (
                         glasses_idx - 1
                     ) % len(glasses_list)
-                    smoother.reset()
+
+                elif key in (ord('g'), ord('G')):
+                    glasses_on = not glasses_on
 
                 elif key == ord('v'):
                     if not voice.mic_available:

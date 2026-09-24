@@ -1,11 +1,14 @@
 """
-MediaPipe face landmark setup and extraction, plus the two signal-
+MediaPipe face landmark setup and extraction, plus the signal-
 smoothing helpers used on top of raw per-frame landmark data
 (OneEuroFilter for continuous values like glasses position/angle,
-StableDetector for discrete labels like face shape/skin tone).
+StableDetector for discrete labels like face shape/skin tone), and
+3D head-pose estimation (solve_head_pose) for the AR glasses.
 """
+import math
 import mediapipe as mp
 import numpy as np
+import cv2
 import urllib.request
 import os
 import time
@@ -103,6 +106,137 @@ def get_head_yaw(landmarks):
     right_ear = landmarks[454]
     ear_cx    = (left_ear.x + right_ear.x) / 2
     return abs(nose.x - ear_cx)
+
+
+# ──────────────────────────────────────────
+# 3D head pose (yaw/pitch/roll) via cv2.solvePnP, for the AR glasses'
+# perspective warp. Uses the classic 6-point generic face model (mm,
+# arbitrary but self-consistent scale) matched to these MediaPipe
+# 468-landmark indices -- this exact point set/index pairing is the
+# standard recipe used across most OpenCV+MediaPipe head-pose code:
+#   1   = nose tip
+#   152 = chin
+#   33  = left eye, outer corner
+#   263 = right eye, outer corner
+#   61  = left mouth corner
+#   291 = right mouth corner
+# ──────────────────────────────────────────
+POSE_LANDMARK_IDXS = (1, 152, 33, 263, 61, 291)
+# Y and Z are negated relative to the "textbook" version of this model
+# (which uses a Y-up, Z-toward-viewer convention) to match OpenCV's
+# camera convention (Y down, Z into the scene) -- without this, a face
+# looking straight at the camera solves to a ~180 degree rotation
+# instead of ~0, which is harmless for the flat-rectangle warp itself
+# (confirmed by rendering a real test photo) but risks the pitch value
+# wrapping around near +-180 degrees, which would destabilize the One
+# Euro filter. Verified empirically against a real photo run through
+# MediaPipe: this flip keeps yaw/roll numerically identical and only
+# re-centers pitch.
+POSE_MODEL_POINTS = np.array([
+    (0.0, 0.0, 0.0),           # Nose tip
+    (0.0, 330.0, 65.0),        # Chin
+    (-225.0, -170.0, 135.0),   # Left eye, outer corner
+    (225.0, -170.0, 135.0),    # Right eye, outer corner
+    (-150.0, 150.0, 125.0),    # Left mouth corner
+    (150.0, 150.0, 125.0),     # Right mouth corner
+], dtype=np.float64)
+
+
+def rotation_matrix_to_euler(R):
+    """
+    3x3 rotation matrix -> (pitch, yaw, roll) in radians, for R defined
+    as Rz(roll) @ Ry(yaw) @ Rx(pitch) (the standard XYZ-intrinsic
+    decomposition). Paired with euler_to_rotation_matrix below for a
+    faithful round-trip -- verified in this module's self-test, since
+    the OneEuroFilter smoothing path depends on decompose -> smooth ->
+    reconstruct reproducing the original rotation.
+    """
+    sy = math.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2)
+    if sy >= 1e-6:
+        pitch = math.atan2(R[2, 1], R[2, 2])
+        yaw   = math.atan2(-R[2, 0], sy)
+        roll  = math.atan2(R[1, 0], R[0, 0])
+    else:  # gimbal-lock edge case (looking straight up/down)
+        pitch = math.atan2(-R[1, 2], R[1, 1])
+        yaw   = math.atan2(-R[2, 0], sy)
+        roll  = 0.0
+    return pitch, yaw, roll
+
+
+def euler_to_rotation_matrix(pitch, yaw, roll):
+    """Inverse of rotation_matrix_to_euler."""
+    rx = np.array([[1, 0, 0],
+                   [0, math.cos(pitch), -math.sin(pitch)],
+                   [0, math.sin(pitch), math.cos(pitch)]])
+    ry = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                   [0, 1, 0],
+                   [-math.sin(yaw), 0, math.cos(yaw)]])
+    rz = np.array([[math.cos(roll), -math.sin(roll), 0],
+                   [math.sin(roll), math.cos(roll), 0],
+                   [0, 0, 1]])
+    return rz @ ry @ rx
+
+
+def _camera_matrix(w, h):
+    """Approximate camera intrinsics (no real calibration available for a webcam) -- the standard focal~=width, centered-principal-point approximation used throughout OpenCV head-pose tutorials."""
+    return np.array([[w, 0, w / 2], [0, w, h / 2], [0, 0, 1]], dtype=np.float64)
+
+
+_DIST_COEFFS = np.zeros((4, 1))
+
+
+def solve_head_pose(landmarks, w, h):
+    """
+    Estimates head pose from 6 stable landmarks via cv2.solvePnP.
+    Returns (ok, rvec, tvec, (pitch_deg, yaw_deg, roll_deg)).
+    ok is False (with the other fields None) if solvePnP fails or
+    throws -- callers should treat that like "no reliable pose" (e.g.
+    hide the AR glasses that frame) rather than crash.
+    """
+    try:
+        image_points = np.array(
+            [(landmarks[i].x * w, landmarks[i].y * h) for i in POSE_LANDMARK_IDXS],
+            dtype=np.float64,
+        )
+        ok, rvec, tvec = cv2.solvePnP(
+            POSE_MODEL_POINTS, image_points, _camera_matrix(w, h), _DIST_COEFFS,
+            flags=cv2.SOLVEPNP_ITERATIVE,
+        )
+        if not ok:
+            return False, None, None, None
+        R, _ = cv2.Rodrigues(rvec)
+        pitch, yaw, roll = rotation_matrix_to_euler(R)
+        return True, rvec, tvec, (math.degrees(pitch), math.degrees(yaw), math.degrees(roll))
+    except Exception:
+        return False, None, None, None
+
+
+def _selftest():
+    """Synthetic, no-camera-needed correctness check for the Euler round-trip and solvePnP sign/magnitude -- run via `python face_tracking.py`."""
+    w, h = 640, 480
+    cam = _camera_matrix(w, h)
+    for pitch, yaw, roll in [(0.1, 0.3, -0.2), (0.0, 0.0, 0.0), (-0.4, 0.6, 0.15)]:
+        R = euler_to_rotation_matrix(pitch, yaw, roll)
+        p2, y2, r2 = rotation_matrix_to_euler(R)
+        R2 = euler_to_rotation_matrix(p2, y2, r2)
+        assert np.max(np.abs(R - R2)) < 1e-9, "Euler round-trip mismatch"
+
+    true_tvec = np.array([[0.0], [0.0], [600.0]])
+    for known_yaw_deg in (-30, -10, 0, 25, 34):
+        R_true = euler_to_rotation_matrix(0.0, math.radians(known_yaw_deg), 0.0)
+        rvec_true, _ = cv2.Rodrigues(R_true)
+        projected, _ = cv2.projectPoints(POSE_MODEL_POINTS, rvec_true, true_tvec, cam, _DIST_COEFFS)
+        landmarks = [None] * 468
+        for idx, pt in zip(POSE_LANDMARK_IDXS, projected.reshape(-1, 2)):
+            landmarks[idx] = type('L', (), {'x': pt[0] / w, 'y': pt[1] / h})()
+        ok, _, _, (pitch, yaw, roll) = solve_head_pose(landmarks, w, h)
+        assert ok, "solve_head_pose failed on a clean synthetic pose"
+        assert abs(yaw - known_yaw_deg) < 1.0, f"yaw {yaw} != expected {known_yaw_deg}"
+    print("[face_tracking] selftest passed")
+
+
+if __name__ == "__main__":
+    _selftest()
 
 
 class StableDetector:
